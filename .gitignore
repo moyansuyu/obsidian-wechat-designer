@@ -1,0 +1,5 @@
+node_modules/
+tmp/
+test/_out.js
+*.log
+.DS_Store

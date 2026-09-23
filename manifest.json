@@ -1,0 +1,9 @@
+{
+  "id": "wechat-designer",
+  "name": "公众号图文设计器",
+  "version": "0.1.0",
+  "minAppVersion": "0.15.0",
+  "description": "将 Markdown 转为微信公众号兼容 HTML，本地手机预览样式，一键复制后粘贴到公众号后台。",
+  "author": "moyansuyu",
+  "isDesktopOnly": true
+}
