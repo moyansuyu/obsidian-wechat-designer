@@ -3,3 +3,7 @@ tmp/
 test/_out.js
 *.log
 .DS_Store
+
+# Build output — must be attached to a GitHub Release, not committed.
+main.js
+main.js.map

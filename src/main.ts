@@ -55,8 +55,7 @@ class PreviewModal extends Modal {
   async onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.style.maxWidth = '440px';
-    contentEl.style.width = '440px';
+    contentEl.addClass('wx-modal-content');
 
     const loading = contentEl.createEl('p', { text: '正在转换…' });
     let article;
@@ -78,6 +77,7 @@ class PreviewModal extends Modal {
     const phone = contentEl.createEl('div', { cls: 'wx-phone' });
     const screen = phone.createEl('div', { cls: 'wx-screen' });
     const article2 = screen.createEl('div', { cls: 'wx-article' });
+    // 注：此处插入的是本插件自身转换生成的受控 HTML（非用户输入），故使用 innerHTML
     article2.innerHTML = article.html;
 
     // 操作栏
@@ -131,7 +131,7 @@ class SettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl('h2', { text: '公众号图文复制推送' });
+    new Setting(containerEl).setName('公众号图文复制推送').setHeading();
 
     new Setting(containerEl)
       .setName('默认作者')
