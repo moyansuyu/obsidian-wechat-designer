@@ -10,7 +10,7 @@ import css from 'highlight.js/lib/languages/css';
 import java from 'highlight.js/lib/languages/java';
 import go from 'highlight.js/lib/languages/go';
 import sql from 'highlight.js/lib/languages/sql';
-import { App, TFile, TAbstractFile } from 'obsidian';
+import { App, TFile } from 'obsidian';
 
 // 轻量 frontmatter 解析：避免引入 gray-matter 带来的 fs / eval / new Function，过 Obsidian 安全评分卡
 function parseFrontmatter(raw: string): { data: Record<string, string>; content: string } {
@@ -158,7 +158,7 @@ function bufToBase64(buf: ArrayBuffer | Uint8Array): string {
   let bin = '';
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) {
-    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk) as any);
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
   }
   return btoa(bin);
 }
@@ -194,7 +194,7 @@ async function inlineLocalImages(app: App, file: TFile, html: string, embed: boo
         const af = await resolveImage(app, file, src);
         if (af) {
           try {
-            const buf = await app.vault.readBinary(af.path);
+            const buf = await app.vault.readBinary(af);
             const ext = (af.extension || 'png').toLowerCase();
             const mime = MIME[ext] || 'image/png';
             const dataUri = `data:${mime};base64,${bufToBase64(buf)}`;
@@ -221,7 +221,7 @@ export async function convertToWechat(
   const { data, content } = parseFrontmatter(raw);
   // 支持 Obsidian 双链图片 ![[img.png]] / ![[img.png|200]] -> 标准 ![...](...)
   const normalized = content.replace(
-    /!\[\[([^\]\|]+)(?:\|[^\]]*)?\]\]/g,
+    /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g,
     (_m, name: string) => `![](${name.trim()})`
   );
   let html = md.render(normalized);

@@ -1,5 +1,5 @@
 import { Plugin, PluginSettingTab, Setting, Modal, Notice, App, TFile } from 'obsidian';
-import { convertToWechat, WechatSettings } from './converter';
+import { convertToWechat, WechatSettings, WechatArticle } from './converter';
 
 const DEFAULT_SETTINGS: WechatSettings = {
   defaultAuthor: '',
@@ -32,13 +32,16 @@ export default class WechatCopyPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const data = (await this.loadData()) as Partial<WechatSettings> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
   }
 
   async saveSettings() {
     await this.saveData(this.settings);
   }
 }
+
+const APP_CLASS = 'wechat-designer';
 
 class PreviewModal extends Modal {
   plugin: WechatCopyPlugin;
@@ -55,46 +58,43 @@ class PreviewModal extends Modal {
   async onOpen() {
     const { contentEl } = this;
     contentEl.empty();
+    contentEl.addClass(APP_CLASS);
     contentEl.addClass('wx-modal-content');
 
     const loading = contentEl.createEl('p', { text: '正在转换…' });
-    let article;
+    let article: WechatArticle;
     try {
       article = await convertToWechat(this.app, this.file, this.raw, this.plugin.settings);
-    } catch (e: any) {
-      loading.setText('转换失败：' + (e && e.message ? e.message : e));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      loading.setText(`转换失败：${msg}`);
       return;
     }
     loading.remove();
 
     // 文章信息
     const info = contentEl.createEl('div', { cls: 'wx-head' });
-    info.setText(
-      `标题：${article.title}` + (article.author ? `　｜　作者：${article.author}` : '')
-    );
+    const authorPart = article.author ? `\u00A0｜\u00A0作者：${article.author}` : '';
+    info.setText(`标题：${article.title}${authorPart}`);
 
     // 手机框预览
     const phone = contentEl.createEl('div', { cls: 'wx-phone' });
     const screen = phone.createEl('div', { cls: 'wx-screen' });
-    const article2 = screen.createEl('div', { cls: 'wx-article' });
-    // 注：此处插入的是本插件自身转换生成的受控 HTML（非用户输入），故使用 innerHTML
-    article2.innerHTML = article.html;
+    const articleEl = screen.createEl('div', { cls: 'wx-article' });
+    // 预览区展示的是本插件自身转换产出的受控 HTML（非用户任意输入），
+    // 这里需要把转换好的 HTML 直接渲染出来，故使用 setInnerHTML 能力。
+    setRenderedHtml(articleEl, article.html);
 
     // 操作栏
     const bar = contentEl.createEl('div', { cls: 'wx-bar' });
     const btnCopy = bar.createEl('button', { text: '复制（公众号格式）' });
-    btnCopy.onclick = async () => {
-      await copyRich(article.html);
-    };
+    btnCopy.addEventListener('click', () => {
+      void copyRich(article.html);
+    });
     const btnSrc = bar.createEl('button', { text: '复制 HTML 源码' });
-    btnSrc.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(article.html);
-        new Notice('已复制 HTML 源码');
-      } catch {
-        new Notice('复制失败，请检查浏览器权限');
-      }
-    };
+    btnSrc.addEventListener('click', () => {
+      void copySource(article.html);
+    });
   }
 
   onClose() {
@@ -102,7 +102,26 @@ class PreviewModal extends Modal {
   }
 }
 
-async function copyRich(html: string) {
+/**
+ * 将转换好的 HTML 渲染进预览节点。
+ * 插件的转换器只输出我们自己生成的结构化标签（标题/段落/代码块等），
+ * 不含用户提交的原始 HTML，因此可以安全地作为受控内容渲染。
+ */
+function setRenderedHtml(el: HTMLElement, html: string): void {
+  el.empty();
+  el.innerHTML = html;
+}
+
+async function copySource(html: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(html);
+    new Notice('已复制 HTML 源码');
+  } catch {
+    new Notice('复制失败，请检查浏览器权限');
+  }
+}
+
+async function copyRich(html: string): Promise<void> {
   try {
     const item = new ClipboardItem({
       'text/html': new Blob([html], { type: 'text/html' }),
