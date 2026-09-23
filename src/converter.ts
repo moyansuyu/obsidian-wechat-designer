@@ -1,4 +1,3 @@
-import matter from 'gray-matter';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -11,9 +10,26 @@ import css from 'highlight.js/lib/languages/css';
 import java from 'highlight.js/lib/languages/java';
 import go from 'highlight.js/lib/languages/go';
 import sql from 'highlight.js/lib/languages/sql';
+import { App, TFile, TAbstractFile } from 'obsidian';
+
+// 轻量 frontmatter 解析：避免引入 gray-matter 带来的 fs / eval / new Function，过 Obsidian 安全评分卡
+function parseFrontmatter(raw: string): { data: Record<string, string>; content: string } {
+  const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (!m) return { data: {}, content: raw };
+  const data: Record<string, string> = {};
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = line.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
+    if (kv) {
+      let v = kv[2].trim();
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+      data[kv[1]] = v;
+    }
+  }
+  return { data, content: raw.slice(m[0].length) };
+}
+
 import markdown from 'highlight.js/lib/languages/markdown';
 import yaml from 'highlight.js/lib/languages/yaml';
-import { App, TFile, TAbstractFile } from 'obsidian';
 import { HLJS_INLINE, BASE_STYLE } from './theme';
 
 // 只注册常用语言，显著减小打包体积（全量 highlight.js 约 1.8MB）
@@ -202,7 +218,7 @@ export async function convertToWechat(
   raw: string,
   settings: WechatSettings
 ): Promise<WechatArticle> {
-  const { data, content } = matter(raw);
+  const { data, content } = parseFrontmatter(raw);
   // 支持 Obsidian 双链图片 ![[img.png]] / ![[img.png|200]] -> 标准 ![...](...)
   const normalized = content.replace(
     /!\[\[([^\]\|]+)(?:\|[^\]]*)?\]\]/g,
