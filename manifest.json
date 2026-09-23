@@ -1,8 +1,8 @@
 {
   "id": "wechat-designer",
   "name": "WeChat Article Designer",
-  "version": "0.1.3",
-  "minAppVersion": "1.6.0",
+  "version": "0.1.4",
+  "minAppVersion": "1.13.0",
   "description": "Convert Markdown to WeChat-compatible HTML with inline styles, preview it in a phone frame, and copy it straight into the WeChat Official Account editor.",
   "author": "moyansuyu",
   "isDesktopOnly": true

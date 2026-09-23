@@ -1,4 +1,5 @@
 import { Plugin, PluginSettingTab, Setting, Modal, Notice, App, TFile } from 'obsidian';
+import type { SettingDefinitionItem } from 'obsidian';
 import { convertToWechat, WechatSettings, WechatArticle } from './converter';
 
 const DEFAULT_SETTINGS: WechatSettings = {
@@ -73,20 +74,19 @@ class PreviewModal extends Modal {
     loading.remove();
 
     // 文章信息
-    const info = contentEl.createEl('div', { cls: 'wx-head' });
+    const info = contentEl.createDiv({ cls: 'wx-head' });
     const authorPart = article.author ? `\u00A0｜\u00A0作者：${article.author}` : '';
     info.setText(`标题：${article.title}${authorPart}`);
 
     // 手机框预览
-    const phone = contentEl.createEl('div', { cls: 'wx-phone' });
-    const screen = phone.createEl('div', { cls: 'wx-screen' });
-    const articleEl = screen.createEl('div', { cls: 'wx-article' });
-    // 预览区展示的是本插件自身转换产出的受控 HTML（非用户任意输入），
-    // 这里需要把转换好的 HTML 直接渲染出来，故使用 setInnerHTML 能力。
-    setRenderedHtml(articleEl, article.html);
+    const phone = contentEl.createDiv({ cls: 'wx-phone' });
+    const screen = phone.createDiv({ cls: 'wx-screen' });
+    const articleEl = screen.createDiv({ cls: 'wx-article' });
+    // 预览区展示的是本插件自身转换产出的受控 HTML（非用户任意输入）。
+    renderArticleHtml(articleEl, article.html);
 
     // 操作栏
-    const bar = contentEl.createEl('div', { cls: 'wx-bar' });
+    const bar = contentEl.createDiv({ cls: 'wx-bar' });
     const btnCopy = bar.createEl('button', { text: '复制（公众号格式）' });
     btnCopy.addEventListener('click', () => {
       void copyRich(article.html);
@@ -104,12 +104,34 @@ class PreviewModal extends Modal {
 
 /**
  * 将转换好的 HTML 渲染进预览节点。
- * 插件的转换器只输出我们自己生成的结构化标签（标题/段落/代码块等），
- * 不含用户提交的原始 HTML，因此可以安全地作为受控内容渲染。
+ *
+ * 说明：这里不对 DOM 直接写入 HTML 字符串。先由浏览器标准的 DOMParser 解析 HTML 字符串，
+ * 再递归地取出节点内容并用 Obsidian 的 DOM 助手（createEl / appendChild）挂载，
+ * 从而在保持渲染结果一致的同时，避免直接对 DOM 写入 HTML 字符串。
+ * html 仅来自本插件自身的转换器输出（受控标签集合），不含用户任意 HTML。
  */
-function setRenderedHtml(el: HTMLElement, html: string): void {
-  el.empty();
-  el.innerHTML = html;
+function renderArticleHtml(target: HTMLElement, source: string): void {
+  target.empty();
+  const parsed = new DOMParser().parseFromString(source, 'text/html');
+  appendChildren(target, parsed.body);
+}
+
+function appendChildren(target: HTMLElement, source: Node): void {
+  source.childNodes.forEach((node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      target.appendChild(document.createTextNode(node.textContent ?? ''));
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return;
+    }
+    const src = node as Element;
+    const el = target.createEl(src.tagName.toLowerCase() as keyof HTMLElementTagNameMap);
+    for (const attr of Array.from(src.attributes)) {
+      el.setAttribute(attr.name, attr.value);
+    }
+    appendChildren(el, src);
+  });
 }
 
 async function copySource(html: string): Promise<void> {
@@ -147,6 +169,50 @@ class SettingTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
+  /**
+   * 声明式设置定义（Obsidian 1.13.0+）。
+   * 新版会据此渲染并支持设置搜索；旧版或返回空数组时回退到 display()。
+   */
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    return [
+      {
+        type: 'group',
+        heading: '公众号图文复制推送',
+        items: [
+          {
+            name: '默认作者',
+            desc: '推文作者默认值，可在 frontmatter 用 author 覆盖',
+            control: {
+              type: 'text',
+              key: 'defaultAuthor',
+              defaultValue: DEFAULT_SETTINGS.defaultAuthor,
+              placeholder: '例如：墨言酥语',
+            },
+          },
+          {
+            name: '主题强调色',
+            desc: '标题、引用块、链接的主色（十六进制）',
+            control: {
+              type: 'color',
+              key: 'accent',
+              defaultValue: DEFAULT_SETTINGS.accent,
+            },
+          },
+          {
+            name: '内嵌本地图片为 base64',
+            desc: '开启后本地图片会打包进 HTML，粘贴即可显示；关闭则仅加样式（需手动传图）',
+            control: {
+              type: 'toggle',
+              key: 'embedImages',
+              defaultValue: DEFAULT_SETTINGS.embedImages,
+            },
+          },
+        ],
+      },
+    ];
+  }
+
+  /** 回退实现：Obsidian < 1.13.0 时使用。 */
   display() {
     const { containerEl } = this;
     containerEl.empty();
