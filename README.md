@@ -1,4 +1,4 @@
-# 公众号图文设计器 (WeChat Designer)
+# WeChat Article Designer（公众号图文设计器）
 
 Obsidian 插件：把 Markdown 一键转成**微信公众号兼容的 HTML**，本地手机预览样式，复制后直接粘贴到公众号后台编辑器。
 
@@ -20,7 +20,7 @@ Obsidian 插件：把 Markdown 一键转成**微信公众号兼容的 HTML**，�
 
 1. 在 [Releases](../../releases) 下载 `main.js`、`manifest.json`、`styles.css` 三个文件
 2. 放到你的 vault 目录下：`.obsidian/plugins/wechat-designer/`
-3. Obsidian → 设置 → 第三方插件 → 关闭安全模式 → 启用「公众号图文设计器」
+3. Obsidian → 设置 → 第三方插件 → 关闭安全模式 → 启用「WeChat Article Designer」
 
 ### 方式二：社区插件市场（规划中）
 
